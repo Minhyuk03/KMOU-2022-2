@@ -1,0 +1,93 @@
+#include <stdio.h>
+
+#include <math.h>
+
+#define _CRT_SECURE_NO_WARNINGS
+
+#pragma warning(disable:4996)
+
+
+float discount_price(float price, float discount_rate);
+
+
+float extract_byte(int i, int x);
+
+
+
+
+
+int main(void)
+
+{
+
+
+
+    //1번
+
+    int price;
+
+    printf("제품의 가격은? : ");
+
+    scanf("%d", &price);
+
+
+
+    int discount_rate;
+
+    printf("할인율(%%)? : ");
+
+    scanf("%d", &discount_rate);
+
+
+
+    int discounted = discount_price(price, discount_rate);
+
+
+
+    printf("할인가: %d원 (%d원 할인)\n", discounted, price - discounted);
+
+
+
+    //2번
+
+    unsigned int x;
+
+    printf("16진수를 입력하세요 : ");
+
+    scanf("%x", &x);
+
+
+
+    for (int i = 0; i < 4; i++)
+
+    {
+
+        unsigned int byte = extract_byte(i, x);
+
+        printf("Byte %d : %02x\n", i, byte);
+
+    }
+
+
+
+    return 0;
+
+}
+
+float discount_price(float price, float discount_rate)
+
+{
+
+    return price - (price * (discount_rate / 100));
+
+}
+
+
+
+float extract_byte(int i, int x)
+
+{
+
+    return (x >> i * 8) & 0x000000FF;
+
+}
