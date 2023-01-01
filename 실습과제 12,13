@@ -1,0 +1,265 @@
+//main.c
+#define _CRT_SECURE_NO_WARNINGS 
+#define _CRT_NONSTDC_NO_DEPRECATE
+#include <stdio.h>   // 표준 입출력
+#include <string.h>  // 문자열 처리
+#include <ctype.h>   // 문자의 자료형
+#include <stdlib.h>  // 표준 라이브러리
+#include <math.h>    // 수학 함수
+#include <time.h>    // 시간에 관련된 함수
+
+#include "movie.h"
+
+int main()
+{
+	char* fname = "전체영화목록(_2009.12)(0).csv";
+	FILE* fin = fopen(fname, "r");
+	if (fin == NULL)
+	{
+		fprintf(stderr, "Error: can't open%s\n", fname);
+		exit(EXIT_FAILURE);
+	}
+	char buf[BUFSIZ];
+	fgets(buf, BUFSIZ, fin); // DVD ... first line
+	fgets(buf, BUFSIZ, fin); //second line
+	char title[T_LEN];
+	char code[500];
+	char director[500];
+	int  year;
+	char grade[T_LEN / 2];
+	//struct movie Movies[N_RECORD];
+	MOVIE* Movies = NULL;; // 메모리가 없음
+	MOVIE* last = NULL;
+	int i = 0;
+	while (fgets(buf, BUFSIZ, fin) != NULL)
+	{
+		/*print_movie(Movies[i], title, year, grade);*/
+		//printf("%s\n", buf);
+		get_record(buf,title, code, director, &year, grade);
+		//printf("%s::%d::%s\n", title, year, grade);
+		//assign_movie(&Movies[i], title, year, grade);
+		//assign_movie_code(&Movies[i],title, code, director, year, grade);
+		
+		MOVIE *m = allocate_movie(title, code, director, year, grade);
+		if (Movies == NULL)
+		{
+			Movies = m;
+			last = m;
+		}
+		else
+		{
+			last -> next = m;
+			last = m;
+		}
+
+		//print_movie(m);
+		i++;
+	}
+	//int n_record = i;
+	print_movies(Movies);
+	free_movies(Movies);
+	//qsort(Movies, n_record, sizeof(MOVIE), by_code);
+	//print_movies(Movies, n_record);
+	//while (1)
+	//{
+	//	printf("영화제목을 입력하세요.\n");
+	//	fgets(title, T_LEN, stdin);
+	//	title[strlen(title) - 1] = '\0';
+	//	MOVIE key;
+	//	strcpy(key.title, title);
+	//	MOVIE* found = bsearch(&key, Movies, n_record, sizeof(MOVIE), by_title);
+	//	print_movie(*found);
+
+	//	break;
+	//}
+	fclose(fin);
+	return 0;
+}
+
+//movie.c
+#define _CRT_SECURE_NO_WARNINGS 
+#define _CRT_NONSTDC_NO_DEPRECATE
+#include <stdio.h>   // 표준 입출력
+#include <string.h>  // 문자열 처리
+#include <ctype.h>   // 문자의 자료형
+#include <stdlib.h>  // 표준 라이브러리
+#include <math.h>    // 수학 함수
+#include <time.h>    // 시간에 관련된 함수
+
+#include "movie.h"
+
+void get_record(char* buf, char* title, char* code, char* director, int* year, char* grade)
+{	
+	buf[strlen(buf) - 1] = '\0';
+	const char* DELIMIT = ",";
+	char* p = strtok(buf, DELIMIT);					// 순번
+	p = strtok(NULL, DELIMIT); strcpy(title, p);		// 제목
+	p = strtok(NULL, DELIMIT); strcpy(code, p);		// 청구기호
+	p = strtok(NULL, DELIMIT); strcpy(director, p);	// 감   독 / 주   연
+	p = strtok(NULL, DELIMIT);						// 장   르
+	p = strtok(NULL, DELIMIT); *year = atoi(p);		//년도 
+	p = strtok(NULL, DELIMIT);						// 상영시간
+	p = strtok(NULL, DELIMIT);
+	strcpy(grade, p);								// 등  급
+}
+
+void print_movies(MOVIE* Movies)
+{
+	/*for (int i = 0; i < n_record; i++)
+	{
+		print_movie(Movies[i]);
+	}*/
+	for (MOVIE *m = Movies; m !=NULL;m = m -> next)
+	{
+		print_movie(m);
+	}
+}
+
+void assign_movie(MOVIE* m, char* title, int year, char* grade)
+{
+	m->title = malloc(strlen(title) + 1);
+	strcpy(m->title, title);
+	m->year = year;
+	m->grade = get_grade(grade);
+}
+
+void assign_movie_code(MOVIE* m, char* title,char* code, char* director, int year, char* grade)
+{
+	m->title = malloc(strlen(title) + 1);
+	strcpy(m->title, title);
+	m->code = malloc(strlen(code) + 1);
+	strcpy(m->code, code);
+	m->director = malloc(strlen(director) + 1);
+	strcpy(m->director, director);
+	m->year = year;
+	m->grade = get_grade(grade);
+}
+MOVIE* allocate_movie(char* title, char* code, char* director, int year, char* grade)
+{
+	MOVIE* m = (MOVIE*)malloc(sizeof(MOVIE));
+	m->title = strdup(trim(title));
+	m->code  = strdup(trim(code));
+	m->director = strdup(trim(director));
+	m->year = year;
+	m->grade = get_grade(grade);
+	m->next = NULL;
+	return m;
+}
+ 
+GRADE get_grade(char* grade)
+{
+	if (strcmp("고등학생이상", grade) == 0)		return HIGH;
+	if (strcmp("청소년관람불가", grade) == 0)	return YOUTH;
+	if (strcmp("전체관람가", grade) == 0)		return ALL;
+	if (strcmp("중학생이상", grade) == 0)		return MIDDLE;
+	if (strcmp("중학생 이상", grade) == 0)		return MIDDLE;
+	if (strcmp("전체이용가", grade) == 0)		return ALL;
+}
+
+void print_movie(MOVIE* m)
+{
+	char grade[T_LEN / 2];
+	switch (m->grade)
+	{
+	case MIDDLE: strcpy(grade, "중학생이상"); break;
+	case HIGH: strcpy(grade, "고등학생이상"); break;
+	case YOUTH: strcpy(grade, "청소년관람불가"); break;
+	case ALL: strcpy(grade, "전체관람가"); break;
+	default: strcpy(grade, "입력오류"); break;
+	}
+	printf("%s::%s::%s::%d::%s\n", m->code, m->title, m->director, m->year, grade);
+}
+
+int by_code(void* first, void* second)
+{
+	MOVIE* a = (MOVIE*)first;
+	MOVIE* b = (MOVIE*)second;
+	return strcmp(a->code, b->code);
+}
+
+char* ltrim(char* s)
+{
+	while (*s == ' ') s++;
+	return s;
+}
+
+char* rtrim(char* s)
+{
+	char* back = s + strlen(s);
+	while (*back == ' ') --back;
+	*(back + 1) = '\0';
+	return s;
+}
+
+char* trim(char* s)
+{
+	return rtrim(ltrim(s));
+}
+
+void free_movies(MOVIE* Movies)
+{
+	while (Movies != NULL)
+	{
+		MOVIE* m = Movies;
+		Movies = Movies -> next;
+		free_movie(m);
+	}
+}
+void free_movie(MOVIE* m)
+{
+	free(m->title);
+	free(m->code);
+	free(m->director);
+	free(m);
+}
+
+//movie.h
+#ifndef _MOVIE_H_
+#define _MOVIE_H_
+
+#define T_LEN    100
+#define N_RECORD 5000
+
+enum grade { MIDDLE, HIGH, YOUTH, ALL, OTHER };
+
+typedef enum grade GRADE;
+
+struct movie
+{
+	char *title;
+	char *code; 
+	char *director; 
+	int  year;
+	GRADE grade;
+	struct movie* next;
+};
+typedef struct movie MOVIE;
+
+void get_record(char* buf,char* title, char* code, char* director, int* year, char* grade);
+
+void print_movies(MOVIE *Movies);
+
+void assign_movie(MOVIE* m, char* title, int year, char* grade);
+
+void assign_movie_code(MOVIE* m,char* title, char* code, char* director, int year, char* grade);
+
+MOVIE* allocate_movie(char* title, char* code, char* director, int year, char* grade);
+
+GRADE get_grade(char* grade);
+
+void print_movie(MOVIE* m);
+
+int by_code(void* first, void* second);
+
+//빈칸 제거
+char* ltrim(char* s);
+
+char* rtrim(char* s);
+
+char* trim(char* s);
+
+void free_movies(MOVIE* Movies);
+
+void free_movie(MOVIE* m);
+#endif // !_MOVIE_H_
+
