@@ -1,0 +1,140 @@
+define _CRT_SECURE_NO_WARNINGS 
+#define _CRT_NONSTDC_NO_DEPRECATE
+#include <stdio.h>   // 표준 입출력
+#include <string.h>  // 문자열 처리
+#include <ctype.h>   // 문자의 자료형
+#include <stdlib.h>  // 표준 라이브러리
+#include <math.h>    // 수학 함수
+#include <time.h>    // 시간에 관련된 함수
+
+#define T_LEN    100
+#define N_RECORD 5000
+
+enum grade { MIDDLE, HIGH, YOUTH, ALL, OTHER };
+
+typedef enum grade GRADE;
+
+
+struct movie
+{
+	int  year;
+	GRADE grade;
+	char title[T_LEN];
+};
+typedef struct movie MOVIE;
+
+
+
+void get_record(char* buf, char* title, int* year, char* grade);
+void print_movies(struct movie Movies[], int n_record);
+void assign_movie(MOVIE *m,char* title,int year,char *grade);
+GRADE get_grade(char* grade);
+void print_movie(MOVIE m);
+int by_title(void* first, void* second);
+
+int main()
+{
+	char* fname = "전체영화목록(_2009.12)(0).csv";
+	FILE* fin = fopen(fname, "r");
+	if (fin == NULL)
+	{
+		fprintf(stderr, "Error: can't open%s\n", fname);
+		exit(EXIT_FAILURE);
+	}
+	char buf[BUFSIZ];
+	fgets(buf, BUFSIZ, fin); // DVD ... first line
+	fgets(buf, BUFSIZ, fin); //second line
+	char title[T_LEN];
+	int  year;
+	char grade[T_LEN / 2];
+	struct movie Movies[N_RECORD];
+	int i = 0;
+	while (fgets(buf, BUFSIZ, fin) != NULL)
+	{
+		/*print_movie(Movies[i], title, year, grade);*/
+		//printf("%s\n", buf);
+		get_record(buf, title, &year, grade);
+		//printf("%s::%d::%s\n", title, year, grade);
+		assign_movie(&Movies[i], title, year, grade);
+		/*printf("%s::%d::%d\n", Movies[i].title, Movies[i].year, Movies[i].grade);*/
+		i++;
+	}
+	int n_record = i;
+	/*print_movies(Movies, n_record);*/
+	qsort(Movies, n_record, sizeof(MOVIE), by_title);
+	print_movies(Movies, n_record);
+	//while (1)
+	//{
+	//	printf("영화제목을 입력하세요.\n");
+	//	fgets(title, T_LEN, stdin);
+	//	title[strlen(title) - 1] = '\0';
+	//	MOVIE key;
+	//	strcpy(key.title,title);
+	//	MOVIE* found = bsearch(&key ,Movies, n_record, sizeof(MOVIE), by_title);
+	//	print_movie(*found);
+
+	//	break;
+	//}
+	fclose(fin);
+	return 0;
+}
+
+void get_record(char* buf, char* title, int* year, char* grade)
+{
+	buf[strlen(buf) - 1] = '\0';
+	const char* DELIMIT = ",";
+	char* p = strtok(buf, DELIMIT); // 순번
+	p = strtok(NULL, DELIMIT); strcpy(title, p);
+	p = strtok(NULL, DELIMIT); // 청구기호
+	p = strtok(NULL, DELIMIT); // 감   독 / 주   연
+	p = strtok(NULL, DELIMIT); // 장   르
+	p = strtok(NULL, DELIMIT); *year = atoi(p);
+	p = strtok(NULL, DELIMIT); // 상영시간
+	p = strtok(NULL, DELIMIT);
+	strcpy(grade, p);// 등  급
+}
+
+void print_movies(struct movie Movies[], int n_record)
+{
+	for (int i = 0; i < n_record; i++) {
+		print_movie(Movies[i]);
+	}
+}
+
+void assign_movie(MOVIE* m, char* title, int year, char* grade)
+{
+	strcpy(m -> title, title);
+	m -> year = year;
+	m->grade = get_grade(grade);
+}
+
+GRADE get_grade(char* grade)
+{
+	if (strcmp("고등학생이상", grade) == 0)		return HIGH;
+	if (strcmp("청소년관람불가", grade) == 0)	return YOUTH;
+	if (strcmp("전체관람가", grade) == 0)		return ALL;
+	if (strcmp("중학생이상", grade) == 0)		return MIDDLE;
+	if (strcmp("중학생 이상", grade) == 0)		return MIDDLE;
+	if (strcmp("전체이용가", grade) == 0)		return ALL;
+}
+
+void print_movie(MOVIE m)
+{
+	char grade[T_LEN / 2];
+	switch (m.grade)
+	{
+	case MIDDLE: strcpy(grade, "중학생이상"); break;
+	case HIGH: strcpy(grade, "고등학생이상"); break;
+	case YOUTH: strcpy(grade, "청소년관람불가"); break;
+	case ALL: strcpy(grade, "전체관람가"); break;
+	default: strcpy(grade, "입력오류"); break;
+	}
+	printf("%s::%d::%s\n", m.title, m.year, grade);
+}
+
+int by_title(void* first, void* second)
+{
+	MOVIE* a = (MOVIE*)first;
+	MOVIE* b = (MOVIE*)second;
+	return strcmp(a->title, b->title);
+}
