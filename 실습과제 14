@@ -1,0 +1,213 @@
+//main.c
+#define _CRT_SECURE_NO_WARNINGS 
+#define _CRT_NONSTDC_NO_DEPRECATE
+#include <stdio.h>   // 표준 입출력
+#include <string.h>  // 문자열 처리
+#include <ctype.h>   // 문자의 자료형
+#include <stdlib.h>  // 표준 라이브러리
+#include <math.h>    // 수학 함수
+#include <time.h>    // 시간에 관련된 함수
+
+#include "movie.h"
+
+int main(int argc,char *argv[])
+{
+	//for (int i = 0; i < argc; i++)
+	//{
+	//	printf("%s\n", argv[i]);
+	//}
+	//exit(0);
+
+	//char* fname = "전체영화목록(_2009.12)(0).csv";
+	char* fname = argv[1];
+	FILE* fin = fopen(fname, "r");
+	if (fin == NULL) 
+	{
+		fprintf(stderr, "Error: can't open%s\n", fname);
+		exit(EXIT_FAILURE);
+	}
+	char buf[BUFSIZ];
+	fgets(buf, BUFSIZ, fin); // DVD ... first line
+	fgets(buf, BUFSIZ, fin); //second line
+	char title[T_LEN];
+	int  year;
+	char grade[T_LEN / 2];
+	MOVIE Movies[N_RECORD];
+	int i = 0;
+	while (fgets(buf, BUFSIZ, fin) != NULL) 
+	{
+		//printf("%s\n", buf);
+		get_record(buf, title, &year, grade);
+		//printf("%s::%d::%s\n", title, year, grade);
+
+		strcpy(Movies[i].title, title);
+		Movies[i].year = year;
+		strcpy(Movies[i].grade, grade);
+		i++;
+	}
+	int n_record = i;
+	qsort(Movies,n_record,sizeof(MOVIE),by_title);
+	print_movies(Movies, n_record);
+	fclose(fin);
+//-----------------------------------------------------------------------
+	char* out = "movie.bin";
+	write_movies(Movies, n_record,out);
+	//read_movies(Movies, n_record, out);
+	while (1)
+	{
+		printf(">>>>>>영화제목을 입력하세요 : ");
+		scanf("%s", title);
+		MOVIE m = binsearch(out, n_record, title);
+		printf("%s::%d::%s\n", m.title, m.year, m.grade);
+	}
+
+
+	return 0;
+}
+
+//movie.c
+#define _CRT_SECURE_NO_WARNINGS 
+#define _CRT_NONSTDC_NO_DEPRECATE
+#include <stdio.h>   // 표준 입출력
+#include <string.h>  // 문자열 처리
+#include <ctype.h>   // 문자의 자료형
+#include <stdlib.h>  // 표준 라이브러리
+#include <math.h>    // 수학 함수
+#include <time.h>    // 시간에 관련된 함수
+
+#include "movie.h"
+
+void get_record(char* buf, char* title, int* year, char* grade) 
+{
+	buf[strlen(buf) - 1] = '\0';
+	const char* DELIMIT = ",";
+	char* p = strtok(buf, DELIMIT); // 순번
+	p = strtok(NULL, DELIMIT); strcpy(title, trim(p));
+	p = strtok(NULL, DELIMIT); // 청구기호
+	p = strtok(NULL, DELIMIT); // 감   독 / 주   연
+	p = strtok(NULL, DELIMIT); // 장   르
+	p = strtok(NULL, DELIMIT); *year = atoi(p);
+	p = strtok(NULL, DELIMIT); // 상영시간
+	p = strtok(NULL, DELIMIT); strcpy(grade, trim(p));// 등  급
+}
+
+void print_movies(MOVIE Movies[], int n_record)
+{
+	for (int i = 0; i < n_record; i++) 
+	{
+		printf("%s::%d::%s\n", Movies[i].title,
+			Movies[i].year, Movies[i].grade);
+	}
+}
+
+void write_movies(MOVIE Movies[], int n_record, char* fname)
+{
+	FILE* fout = fopen(fname, "wb");
+	if (fout == NULL)
+	{
+		fprintf(stderr, "Error: can't open%s\n", fname);
+		exit(EXIT_FAILURE);
+	}
+	fwrite(Movies, sizeof(MOVIE),n_record,fout);
+	fclose(fout);
+}
+
+void read_movies(MOVIE Movies[], int n_record, char* fname)
+{
+	FILE* fin = fopen(fname, "r");
+	if (fin == NULL)
+	{
+		fprintf(stderr, "Error: can't open%s\n", fname);
+		exit(EXIT_FAILURE);
+	}
+	fread (Movies, sizeof(MOVIE), n_record, fin);
+	fclose(fin);
+}
+
+char* ltrim(char* s)
+{
+	while (*s == ' ') s++;
+	return s;
+}
+
+char* rtrim(char* s)
+{
+	char* back = s + strlen(s) - 1;
+	while (*back == ' ') --back;
+	*(back + 1) = '\0';
+	return s;
+}
+
+char* trim(char* s)
+{
+	return rtrim(ltrim(s));
+}
+
+int by_title(void* first, const void* second)
+{
+	const struct movie* a, * b;
+
+	a = (const struct movie*)first;
+	b = (const struct movie*)second;
+
+	return strcmp(a->title , b->title);
+}
+
+MOVIE binsearch(char *fname, int n, char* title) 
+{
+	FILE* fin = fopen(fname, "r");
+	if (fin == NULL)
+	{
+		fprintf(stderr, "Error: can't open%s\n", fname);
+		exit(EXIT_FAILURE);
+	}
+	
+	int low=0, high = n - 1, mid;
+	MOVIE m;
+
+	while (low <= high) 
+	{
+		mid = (low + high) / 2;
+		long offset = mid * sizeof(MOVIE);
+		fseek(fin, offset, SEEK_SET);
+		fread(&m, sizeof(MOVIE), 1, fin);
+		int cmp = strcmp(m.title, title);
+		if (cmp == 0)          
+			return m;
+		
+		else if (cmp > 0)   
+			high = mid - 1;
+		
+		else
+			low = mid + 1;
+	}
+	fclose(fin);
+	strcpy(m.title, "");
+	return m;                            
+}
+
+//movie.h
+#ifndef _MOVIE_H_
+#define _MOVIE_H_
+
+#define T_LEN    100
+#define N_RECORD 5000
+
+struct movie 
+{
+	char title[T_LEN];
+	int  year;
+	char grade[T_LEN / 2];
+};
+typedef struct movie MOVIE;
+
+void get_record(char* buf, char* title, int* year, char* grade);
+void print_movies(MOVIE Movies[], int n_record);
+void write_movies(MOVIE Movies[],int n_record,char* fname);
+void read_movies(MOVIE Movies[], int n_record, char* fname);
+char* ltrim(char* s);
+char* rtrim(char* s);
+char* trim(char* s);
+int by_title(void* first, const void* second);
+MOVIE binsearch(char* fname, int n, char* title);
+#endif
