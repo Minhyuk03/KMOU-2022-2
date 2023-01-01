@@ -1,0 +1,440 @@
+//main
+#define _CRT_SECURE_NO_WARNINGS
+#define _USE_MATH_DEFINES
+#define _CRT_NONSTDC_NO_DEPRECATE
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<time.h>
+#include<string.h>
+#include<ctype.h>
+
+#include "area.h"
+char* menu[NUM_MODE] = { "종료", "시", "동/리" };
+char* city[NUM_CITY] = { "제주시", "서귀포시" };
+char* year[NUM_YEAR] = { "2008", "2009", "2010", "2013" };
+
+int main() {
+    char* filename = "제주도면적.txt";
+    TOWN towns[NUM_TOWN];
+    // 주어진 파일("제주도면적.txt")에서
+    // 각 필드(토지소재지(location), 연도별(면적(area), 지번수(nLot))를 읽어서 자료구조에 저장한다.
+    // 합계와 제주시계와 서귀포계의 정보는 저장할 필요가 없으나
+    // 제주시계 -> 제주시, 서귀포계 -> 서귀포시로 변환해서
+    // city에 저장해야 한다.
+    // 반환값은 토지소재지 수(n_town)이다.
+    int n_town = read_towns(filename, towns, NUM_TOWN);
+
+    // 특별한 형식이 없고 입력된 내용이 제대로 들어갔는지 확인한다.
+    print_towns(towns, n_town);
+    // “동/리”를 기준으로 정렬한다.
+    qsort(towns, n_town, sizeof(TOWN), compare_by_town);
+
+    double area;
+    char search_city[LEN_STR];
+    char search_town[LEN_STR];
+    TOWN* found;
+
+    //임시로 TOWN을 저장할 변수이다.
+    TOWN tmp;
+    tmp.area_by_year = NULL;
+    tmp.city = NULL;
+    tmp.location = NULL;
+
+    while (1) {
+        MODE selected_mode = (MODE)select_menu("작업", menu, NUM_MODE);
+        if (selected_mode == M_EXIT)
+            break;
+        int selected_year = select_menu("연도", year, NUM_YEAR);
+        int search_year = atoi(year[selected_year]);
+        int selected_city = select_menu("도시", city, NUM_CITY);
+        strcpy(search_city, city[selected_city]);
+
+        if (selected_mode == M_CITY) {
+            printf("%s(%d)\n", search_city, search_year);
+            // search_city와 search_year의 조건에 맞는 면적(area)를 모두 더하여 반환한다.
+            area = get_area_by_city(towns, n_town, search_city, search_year);
+            printf("%s의 총 면적은 %12.2f입니다.\n", search_city, area);
+        }
+        else {
+            printf("%s의 동/리를 정확히 입력하세요. ", search_city);
+            clearInputBuffer();
+            fgets(search_town, LEN_STR, stdin);
+
+            // python strip()과 같이 문자열의 앞과 뒤의 공백문자(“ \t\n”)을 제거한 문자열을 반환한다. 
+            char* stripped = trim(search_town); // 실습 프로그램을 참조하세요.
+            printf("%s\n", stripped);
+
+            tmp.location = stripped;
+            tmp.city = search_city;
+
+            found = (TOWN*)bsearch(&tmp, towns, n_town, sizeof(TOWN), compare_by_town);
+
+            if (found == NULL) {
+                fprintf(stderr, "동/리(%s)를 찾을 수 없습니다.\n", search_town);
+            }
+            else {
+                // 시(search_city)의 동/리(stripped)의 해당 연도(search_year)의 면적을 출력한다.
+                print_area(search_city, stripped, search_year, found);
+            }
+        }
+    }
+    return 0;
+}
+
+//area.c
+#define _CRT_SECURE_NO_WARNINGS
+#define _USE_MATH_DEFINES
+#define _CRT_NONSTDC_NO_DEPRECATE
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<time.h>
+#include<string.h>
+#include<ctype.h>
+#include "area.h"
+    
+// 면적에 관련된 함수를 추가한다.
+// 입력 버퍼에 남아있는 문자를 제거한다.
+void clearInputBuffer()
+ {
+    // 입력 버퍼에서 문자를 계속 꺼내고 \n를 꺼내면 반복을 중단
+    while (getchar() != '\n');
+}
+
+
+// 입력 화면을 출력한다.
+int select_menu(char* task, char* menu[], int size) 
+{
+    int selected;
+    do 
+    {
+        printf("[%s]을 선택하세요.", task);
+        printf("[%d.%s ", 0, menu[0]);
+
+        for (int i = 1; i < size - 1; i++)
+            printf("%d.%s ", i, menu[i]);
+
+        printf("%d.%s] 선택 ? ", size - 1, menu[size - 1]);
+        scanf("%d", &selected);
+    } while (selected < 0 || selected > size - 1);
+    return selected;
+}
+
+int read_towns(char* filename, TOWN towns[], int num_town) 
+{
+    FILE* fin = fopen(filename, "r");
+    if (fin == NULL) 
+    {
+        fprintf(stderr, "Error: can't open%s\n", filename);
+        exit(EXIT_FAILURE);
+    }
+    char buf[2 * BUFSIZ];
+    char city[BUFSIZ];
+    char location[BUFSIZ];
+    double area[4];
+    int nLot[4];
+    int i = 0;
+
+    for (int i = 0; i < 5; i++)
+        fgets(buf, BUFSIZ, fin);
+
+    while (fgets(buf, BUFSIZ, fin) != NULL) 
+    {
+        int city_scanner = get_record(buf, city, location, area, nLot);
+        if (city_scanner != 1)
+        {
+            assign(&towns[i], city, location, area, nLot);
+            i++;
+        }
+        city_scanner = 0;
+    }
+
+    fclose(fin);
+    return i;
+}
+
+int get_record(char* buf, char* city, char* location, double* area, int* nLot) 
+{
+    buf[strlen(buf) - 1] = '\0';
+    Eliminate(buf);
+    int ch = 0;
+    int nyear = 0;
+    char* p = strtok(buf, DELIMIT);
+
+    if (p == NULL) 
+        ch = 1;
+    
+    else if (strcmp(p, "제주시계") == 0) 
+    {
+        strcpy(city, "제주시");
+        p = strtok(NULL, DELIMIT); 
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT); 
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT); 
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT); 
+        p = strtok(NULL, DELIMIT);
+        ch = 1;
+    }
+    else if (strcmp(p, "서귀포계") == 0) 
+    {
+        strcpy(city, "서귀포시");
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT);
+        p = strtok(NULL, DELIMIT);
+        ch = 1;
+    }
+    else 
+    {
+        strcpy(location, trim(p));
+        p = strtok(NULL, DELIMIT);area[nyear] = atof(trim(p));
+        p = strtok(NULL, DELIMIT);nLot[nyear] = atoi(trim(p)); nyear++;
+        p = strtok(NULL, DELIMIT);area[nyear] = atof(trim(p));
+        p = strtok(NULL, DELIMIT);nLot[nyear] = atoi(trim(p)); nyear++;
+        p = strtok(NULL, DELIMIT);area[nyear] = atof(trim(p));
+        p = strtok(NULL, DELIMIT);nLot[nyear] = atoi(trim(p)); nyear++;
+        p = strtok(NULL, DELIMIT);area[nyear] = atof(trim(p));
+        p = strtok(NULL, DELIMIT);nLot[nyear] = atoi(trim(p));
+    }
+
+    return ch;
+}
+void print_towns(TOWN towns[], int n_town)
+{
+    for (int i = 0; i < n_town; i++)
+    {
+        printf("%s\n%13s\n\
+            %d년  면적: %.2f   지번수: %d\n\
+            %d년  면적: %.2f   지번수: %d\n\
+            %d년  면적: %.2f   지번수: %d\n\
+            %d년  면적: %.2f   지번수: %d\n",
+            towns[i].city,
+            towns[i].location,
+            towns[i].area_by_year[0].year,
+            towns[i].area_by_year[0].area,
+            towns[i].area_by_year[0].nLot,
+            towns[i].area_by_year[1].year,
+            towns[i].area_by_year[1].area,
+            towns[i].area_by_year[1].nLot,
+            towns[i].area_by_year[2].year,
+            towns[i].area_by_year[2].area,
+            towns[i].area_by_year[2].nLot,
+            towns[i].area_by_year[3].year,
+            towns[i].area_by_year[3].area,
+            towns[i].area_by_year[3].nLot);
+    }
+    printf("\n");
+}
+
+double get_area_by_city(TOWN towns[], int n_town, char* search_city, int search_year)
+{
+    double all_area = 0;
+    int i = 0;
+
+    if (strcmp(search_city, "제주시") == 0)
+    {
+        switch (search_year)
+        {
+        case 2008:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "제주시") == 0)
+                    all_area += towns[i].area_by_year[0].area;
+            }
+            return all_area;
+
+        case 2009:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "제주시") == 0)
+                    all_area += towns[i].area_by_year[1].area;
+            }
+            return all_area;
+
+        case 2010:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "제주시") == 0)
+                    all_area += towns[i].area_by_year[2].area;
+            }
+            return all_area;
+
+        case 2013:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "제주시") == 0)
+                    all_area += towns[i].area_by_year[3].area;
+            }
+            return all_area;
+        }
+    }
+
+    if (strcmp(search_city, "서귀포시") == 0)
+    {
+        switch (search_year)
+        {
+        case 2008:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "서귀포시") == 0)
+                    all_area += towns[i].area_by_year[0].area;
+            }
+            return all_area;
+
+        case 2009:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "서귀포시") == 0)
+                    all_area += towns[i].area_by_year[1].area;
+            }
+            return all_area;
+
+        case 2010:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "서귀포시") == 0)
+                    all_area += towns[i].area_by_year[2].area;
+            }
+            return all_area;
+
+        case 2013:
+            for (; i < n_town; i++)
+            {
+                if (strcmp(towns[i].city, "서귀포시") == 0)
+                    all_area += towns[i].area_by_year[3].area;
+            }
+            return all_area;
+        }
+    }
+}
+
+void assign(TOWN* m, char* city, char* location, double* area, int* nLot) 
+{
+    m->city = strdup(city);
+    m->location = strdup(location);
+    m->area_by_year = (AREA*)malloc(sizeof(AREA) * 4);
+    for (int i = 0; i < 4; i++) 
+    {
+        if (i == 0) m->area_by_year[i].year = 2008;
+        if (i == 1) m->area_by_year[i].year = 2009;
+        if (i == 2) m->area_by_year[i].year = 2010;
+        if (i == 3) m->area_by_year[i].year = 2013;
+        m->area_by_year[i].area = area[i];
+        m->area_by_year[i].nLot = nLot[i];
+    }
+}
+
+void eliminate(char* str, char ch) 
+{
+    unsigned len = strlen(str) + 1;
+    for (; *str != '\0'; str++, len--)
+    { 
+        if (*str == ch) 
+        { 
+            strncpy(str, str + 1, len);
+            str--;
+        }
+    }
+}
+
+void Eliminate(char* str) 
+{
+    eliminate(str, '"');
+    eliminate(str, ',');
+}
+
+int compare_by_town(void* first, void* second) 
+{
+    TOWN* a = (TOWN*)first;
+    TOWN* b = (TOWN*)second;
+    return strcmp(a->location, b->location);
+}
+
+void print_area(char* search_city, char* search_location, int search_year, TOWN* f)
+{
+    int i = 0;
+    if (search_year == 2008) { i = 0; }
+    if (search_year == 2009) { i = 1; }
+    if (search_year == 2010) { i = 2; }
+    if (search_year == 2013) { i = 3; }
+    printf("%s %s 의 %d년 면적은 %.2f 입니다\n\n", search_city, search_location, search_year, f->area_by_year[i].area);
+}
+
+char* ltrim(char* s)
+{
+    while (s == ' ' || s == '\t' || s == '\n') s++;
+    return s;
+}
+
+char* rtrim(char* s)
+{
+    char* back = s + strlen(s) - 1;
+    while (*back == ' ' || *back == '\t' || *back == '\n') --back;
+    *(back + 1) = '\0';
+    return s;
+}
+
+char* trim(char* s)
+{
+    return rtrim(ltrim(s));
+}
+
+//area.h
+#ifndef _AREA_H_
+#define _AREA_H_
+#define NUM_TOWN 200
+#define LEN_STR 30
+#define NUM_YEAR 4
+#define NUM_MODE 3
+#define NUM_CITY 2
+#define DELIMIT "\t\n"
+enum Bool { FALSE, TRUE };
+typedef enum Bool BOOL;
+enum mode { M_EXIT, M_CITY, M_TOWN };
+typedef enum mode MODE;
+struct area {
+	int year; // 연도
+	double area; // 면적
+	int nLot; // 지번수
+};
+typedef struct area AREA;
+struct town {
+	char* city; // 제주시 혹은 서귀포시
+	char* location; // 서귀동 등
+	AREA* area_by_year; // 연도별 구조체 배열을 동적으로 할당해야 함.
+};
+typedef struct town TOWN;
+
+char* ltrim(char* s);
+char* rtrim(char* s);
+char* trim(char* s);
+
+int read_towns(char* filename, TOWN towns[], int num_town);
+
+int get_record(char* buf, char* city, char* location, double* area, int* nLot);
+
+void assign(TOWN* towns, char* city, char* location, double* area, int* nLot);
+
+void Eliminate(char* str);
+
+void eliminate(char* str, char ch);
+
+void print_towns(TOWN towns[], int n_town);
+
+int compare_by_town(void* first, void* second);
+
+double get_area_by_city(TOWN towns[], int n_town, char* search_city, int search_year);
+
+void print_area(char* search_city, char* search_location, int search_year, TOWN* f);
+
+void clearInputBuffer();
+	
+#endif
