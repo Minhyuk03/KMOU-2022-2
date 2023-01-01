@@ -1,0 +1,112 @@
+#include <stdio.h>
+
+#include <math.h>
+
+
+
+int main(void)
+
+{
+
+    float data[12][6] = { 0, };
+
+    float balance_1 = 1500, balance_2 = 1500, balance_3 = 1500, balance_4 = 1500;//잔액 
+        
+    float acc = 0;//이자누계
+
+    float total_payment = 0;//지불총액
+
+    float repay_1 = 0, repay_2 = 0;//원금상환액
+
+    //상환횟수
+
+    for (int i = 0; i < 12; i++)
+    {
+
+        data[i][0] = i + 1;
+
+    }
+
+    //지불이자
+
+    for (int i = 0; i < 12; i++)
+    {
+
+        data[i][1] = balance_1 * 14 / 12 / 100;
+
+        balance_1 -= 134.68 - balance_1 * 14 / 12 / 100;
+
+    }
+
+    //원금상환액
+
+    for (int i = 0; i < 12; i++)
+    {
+        repay_1 = 134.68 - (balance_2 * 14 / 12 / 100);
+
+        data[i][2] = repay_1;
+
+        balance_2 -= 134.68 - (balance_2 * 14 / 12 / 100);
+
+    }
+
+    //이자누계
+
+    for (int i = 0; i < 12; i++)
+    {
+
+        acc += balance_3 * 14 / 12 / 100;
+
+        balance_3 -= 134.68 - balance_3 * 14 / 12 / 100;
+
+        data[i][3] = acc;
+
+    }
+
+    //지불총액
+
+    for (int i = 0; i < 12; i++)
+    {
+
+        data[i][4] = 134.68 * (i + 1);
+
+    }
+
+    //잔액
+
+    for (int i = 0; i < 12; i++)
+    {
+
+        repay_2 = 134.68 - (balance_4 * 14 / 12 / 100);
+
+        data[i][5] = balance_4 - repay_2;
+
+        balance_4 -= 134.68 - (balance_4 * 14 / 12 / 100);
+
+    }
+    printf("  상환횟수   지불이자 원금상환액   이자누계   지불총액      잔액 \n\n");
+
+    for (int i = 0; i < 12; i++)
+    {
+
+        for (int k = 0; k < 1; k++)
+        {
+
+            printf("%10.f", data[i][k]);
+
+        }
+
+        for (int j = 1; j < 6; j++)
+        {
+
+            printf("%10.2lf ", data[i][j]);
+
+        }
+
+        printf("\n");
+
+    }
+
+    return 0;
+
+}
