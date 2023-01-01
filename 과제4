@@ -1,0 +1,178 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#define _CRT_NONSTDC_NO_DEPRECATE
+
+#include <stdio.h>
+
+#include <string.h>
+
+#include <ctype.h>
+
+#include <stdlib.h>
+
+#include <math.h>
+
+#include <time.h>
+
+#define T_LEN 100
+
+#define N_RECORD 6000
+
+struct word
+{
+    int rank;           //순위  1 ~ 6000
+    char word[100];     //단어  
+    char pos[3];        //품사  
+    char grade;         //등급  A B C
+};
+
+void get_record(char* buf,int* rank, char* word, char* pos, char* grade);
+
+void print_word(struct word Word[N_RECORD], int n_record);
+
+int by_rank(const void* first, const void* second);
+
+int by_word(const void* first, const void* second);
+
+int by_pos(const void* first, const void* second);
+
+int by_grade(const void* first, const void* second);
+
+
+int main(void) 
+{
+    char* fname = "한국어 학습용 어휘 목록 (1).tsv";
+
+    FILE* fin = fopen(fname, "r");
+
+    if (fin == NULL) 
+    {
+
+        fprintf(stderr, "Error: can't open%s\n", fname);
+
+        exit(EXIT_FAILURE);
+
+    }
+
+    char buf[BUFSIZ];
+
+    fgets(buf, BUFSIZ, fin); 
+
+    fgets(buf, BUFSIZ, fin);
+
+    int rank;           //순위
+    char word[100];     //단어
+    char pos[3];        //품사
+    char grade;         //등급
+
+    struct word Word[N_RECORD];
+
+    int i = 0;
+
+    while (fgets(buf, BUFSIZ, fin) != NULL) 
+    {
+        get_record(buf, &rank, word, pos, &grade);
+
+        Word[i].rank = rank;
+
+        strcpy(Word[i].word, word);
+
+        strcpy(Word[i].pos, pos);
+
+        Word[i].grade = grade;;
+
+        i++;
+    }
+
+    int n_record = i;
+    //rank
+    /*qsort(Word, n_record, sizeof(struct word), by_rank);
+    print_word(Word, n_record);*/
+    //word
+    //qsort(Word, n_record, sizeof(struct word), by_word);
+    //print_word(Word, n_record);
+    //pos
+    /*qsort(Word, n_record, sizeof(struct word), by_pos);
+     print_word(Word, n_record);*/ 
+    //grade
+    qsort(Word, n_record, sizeof(struct word), by_grade);
+    print_word(Word, n_record);
+
+    fclose(fin);
+
+    return 0;
+
+}
+
+void get_record(char* buf, int* rank, char *word, char* pos, char* grade)
+{
+    buf[strlen(buf) - 1] = '\0';
+
+    const char* DELIMIT = "\t";
+
+    char* p = strtok(buf, DELIMIT);
+
+    *rank = atoi(p);                            //rank
+
+    p = strtok(NULL, DELIMIT); strcpy(word, p); //word
+
+    p = strtok(NULL, DELIMIT); strcpy(pos, p);   //pos
+
+    p = strtok(NULL, DELIMIT); *grade = *p;     //grade 
+
+}
+
+void print_word(struct word Word[N_RECORD], int n_record)
+{
+    for (int i = 0; i < n_record; i++) 
+    {
+        printf("%d::%s::%s::%c\n", Word[i].rank, Word[i].word, Word[i].pos,Word[i].grade);
+    }
+}
+
+int by_rank(const void* first, const void* second)
+{
+    const struct word* a, * b;
+
+    a = (const struct word*)first;
+
+    b = (const struct word*)second;
+
+    return a->rank - b->rank;
+}
+
+int by_word(const void* first, const void* second)
+{
+    const struct word* a, * b;
+
+    a = (const struct word*)first;
+
+    b = (const struct word*)second;
+
+    return strcmp(a->word , b->word);
+}
+
+int by_pos(const void* first, const void* second)
+{
+    const struct word* a, * b;
+
+    a = (const struct word*)first;
+
+    b = (const struct word*)second;
+
+    return strcmp(a->pos , b->pos);
+}
+
+int by_grade(const void* first, const void* second)
+{
+    const struct word* a = (const struct word*)first;
+
+    const struct word* b = (const struct word*)second;
+
+    if (strcmp(a->word, b->word) == 0)
+        return (a->grade - b->grade);
+    else
+        return (strcmp(a->word, b->word));
+    
+
+}
