@@ -1,0 +1,47 @@
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+double fuc(double x);
+double integral(double a,double b,int N);
+
+int main(void)
+{
+    int N[] = { 2, 4, 8, 16, 32, 64, 128, 256};
+
+    double a = 0, b = 3.141592;
+    
+    int size = sizeof(N) / sizeof(N[0]);     //sizeof(N) = 32 ?? size[0] = 4 ??? size = 8
+
+    for (int i = 0; i < size; i++)
+    {
+        double area = integral(a, b, N[i]);
+        printf("%3d %6f\n", N[i], area);
+    }
+    return  0;
+}
+
+double integral(double a,double b,int N)
+{
+    double sum = 0;
+    
+    double h = (b - a) / N;
+    
+    for (int i = 0; i < N; i++)
+    {
+        sum += fuc(h * i);
+    }
+    double area = h / 2 * (fuc(a) + fuc(b) + (2 * sum));
+    
+    return area;
+}
+
+double fuc(double x)
+{
+    return pow(x,2) * sin(x);
+}
+
+
+
+
