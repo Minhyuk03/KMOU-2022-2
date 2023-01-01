@@ -1,0 +1,109 @@
+#pragma warning(disable : 4996)
+#define _CRT_SECURE_NO_WARNINGS
+
+#include <stdio.h>
+#include <time.h>
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include <locale.h>
+
+#define NDEPT 100
+
+void selection_sort(char* depts[], double scores[], int size);       
+void swap(double* a, double* b);
+int high(double scores[], int num, int size);
+void print_depts(double* depts[], double scores[], int i);
+
+int main(void)
+{
+    char* fname = "scores.txt";
+
+    FILE* fin = fopen(fname, "r");
+
+    if (fin == NULL)
+    {
+        fprintf(stderr, "Error: %s can't open\n", fname);
+
+        exit(EXIT_FAILURE);
+    }
+
+    char* depts[NDEPT];
+
+    double scores[NDEPT];
+
+    char dept[BUFSIZ];
+
+    double score;
+
+    int i = 0;
+
+    while (fscanf(fin, "%s %lf", dept, &score) != EOF)
+    {
+        depts[i] = strdup(dept);
+
+        scores[i] = score;
+
+        i++;
+    }
+
+    printf("?뺣젹 ??n");
+
+    print_depts(depts, scores, i);
+
+    //
+
+    selection_sort(depts, scores, i);
+
+    //
+
+    printf("\n?뺣젹 ??n");
+
+    print_depts(depts, scores, i);
+
+    fclose(fin);
+
+    return 0;
+}
+
+void selection_sort(char* depts[], double scores[], int size)
+{
+    for (int i = 0; i < size - 1; i++)
+    {
+        int j = high(scores, i, size);
+
+        swap(&scores[i], &scores[j]);
+
+        swap(&depts[i], &depts[j]);
+    }
+}
+
+void swap(double* a, double* b)
+{
+    double tmp_c = *a;
+
+    *a = *b;
+
+    *b = tmp_c;
+}
+
+int high(double scores[], int num, int size)
+{
+    int min = num;
+
+    for (int i = num; i < size; i++)
+    {
+        if (scores[i] > scores[min])
+            min = i;
+    }
+    return min;
+}
+
+void print_depts(double* depts[], double scores[], int i)
+{
+    for (int k = 0; k < i; k++)
+    {
+        printf("%s %.2f\n", depts[k], scores[k]);
+    }
+}
