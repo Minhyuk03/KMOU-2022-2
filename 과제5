@@ -1,0 +1,245 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <ctype.h>
+#include <time.h>
+#include <stdlib.h>
+
+#define NUM_BOOK 2000
+#define LEN_B 300
+#define NUM_MODE 5
+
+enum mode { M_EXIT, M_CLASS, M_TITLE, M_AUTHOR, M_ABSTRACT };
+typedef enum mode MODE;
+char* menu[] = { "종료", "구분", "제목", "지은이", "요약" };
+
+enum bool{ FALSE, TRUE };
+typedef enum bool BOOL;
+
+struct book
+{
+    char* class;    // 구분 - 동적할당
+    char* title;    // 제목 - 동적할당
+    char* author;   // 지은이 - 동적할당
+    char* publisher;// 출판사 - 동적할당
+    int year;       // 발행일
+    char* abstract; // 요약  - 동적할당
+};
+typedef struct book BOOK;
+
+MODE print_manu(void);
+void clearInputBuffer();
+int read_book(char* filename, BOOK books[], int x);
+int search_book(MODE selected, BOOK* books, int n_book, char* str, int selected_list[]);
+void print_books(BOOK* books, int n_book, int selected_list[], int n_searched);
+void get_record(char* buf, char* class, char* title, char* author, char* publisher, int* year, char* abstract);
+void assign(BOOK* m, char* class, char* title, char* author, char* publisher, int year, char* abstract);
+
+int main()
+{
+    char* filename = "추천도서.txt";
+    BOOK books[NUM_BOOK];
+    char str[BUFSIZ] = "Garbage"; // 검색할 문자열을 저장한다.
+    int selected_list[NUM_BOOK];  // 검색된 도서의 색인을 저장한다.
+
+    // 주어진 파일의 내용을 읽어서 구분, 제목, 지은이, 출판사, 발행일, 요약을 읽어서 books 배열에 저장한다.
+    // 반환값은 읽은 도서의 수이다.
+    // 각 필드(구분, 제목, 지은이, 출판사, 발행일, 요약)의 값이 null이면 빈문자열(“”)을 저장한다.
+    // 발행일의 값이 null이면 2022년을 저장한다.
+
+    int n_book = read_book(filename, books, NUM_BOOK); // n_book = i값 리턴
+    int n_searched;
+    while (1)
+    {
+        MODE selected = print_manu();
+        switch (selected)
+        {
+        case M_EXIT: exit(0);
+        case M_CLASS:
+        case M_TITLE:
+        case M_AUTHOR:
+        case M_ABSTRACT:
+            printf("[%s]에서 검색할 문자열을 입력하시오.", menu[selected]);
+            clearInputBuffer();
+            fgets(str, BUFSIZ, stdin);
+            // 선택된 모드에 입력된 문자열(str)이 부분문자열(substring)로 포함되어 있는
+            // 도서를 검색하여 해당 색인을 selected_list에 저장하고
+            // 검색된 도서 수를 반환한다.
+            n_searched = search_book(selected, books, n_book, str, selected_list);
+        }
+        print_books(books, n_book, selected_list, n_searched);
+    }
+    return 0;
+}
+
+void clearInputBuffer()
+{
+    // 입력 버퍼에서 문자를 계속 꺼내고 \n를 꺼내면 반복을 중단
+    while (getchar() != '\n');
+}
+
+int read_book(char* filename, BOOK books[], int x)
+{
+
+    char buf[BUFSIZ];
+    char class[BUFSIZ];
+    char title[BUFSIZ];
+    char author[BUFSIZ];
+    char publisher[BUFSIZ];
+    int year;
+    char abstract[BUFSIZ];
+
+    int i = 0;
+    FILE* fin = fopen(filename, "r");
+    fgets(buf, BUFSIZ, fin);
+    while (fgets(buf, BUFSIZ, fin) != NULL)
+    {
+        get_record(buf, class, title, author, publisher, &year, abstract);
+        assign(&books[i], class, title, author, publisher, year, abstract);
+        i++;
+    }
+    return i;
+}
+void get_record(char* buf, char* class, char* title, char* author, char* publisher, int* year, char* abstract)
+{
+    buf[strlen(buf) - 1] = '\0';
+    const char* DELIMIT = "\t";
+    char* p = strtok(buf, DELIMIT);
+    if
+        (strcmp(p, "null") == 0) strcpy(class, ""); 
+    else 
+        strcpy(class, p);
+    p = strtok(NULL, DELIMIT);
+    if
+        (strcmp(p, "null") == 0) strcpy(title, ""); 
+    else 
+        strcpy(title, p);
+    p = strtok(NULL, DELIMIT);
+    if 
+        (strcmp(p, "null") == 0) strcpy(author, ""); 
+    else 
+        strcpy(author, p);
+    p = strtok(NULL, DELIMIT);
+    if 
+        (strcmp(p, "null") == 0) strcpy(publisher, ""); 
+    else 
+        strcpy(publisher, p);
+    p = strtok(NULL, DELIMIT);
+    if 
+        (strcmp(p, "null") == 0) *year = 2022;
+    else 
+        *year = atoi(p);
+    p = strtok(NULL, DELIMIT);
+    p = strtok(NULL, DELIMIT);
+    p = strtok(NULL, DELIMIT);
+    if
+        (strcmp(p, "null") == 0) strcpy(abstract, ""); 
+    else
+        strcpy(abstract, p);
+}
+void assign(BOOK* m, char* class, char* title, char* author, char* publisher, int year, char* abstract)
+{
+    m->class = (char*)malloc(strlen(class) + 1);
+    strcpy(m->class, class);
+    m->title = (char*)malloc(strlen(title) + 1);
+    strcpy(m->title, title);
+    m->author = (char*)malloc(strlen(author) + 1);
+    strcpy(m->author, author);
+    m->publisher = (char*)malloc(strlen(publisher) + 1);
+    strcpy(m->publisher, publisher);
+    m->year = year;
+    m->abstract = (char*)malloc(strlen(abstract) + 1);
+    strcpy(m->abstract, abstract);
+}
+
+
+// 선택된 모드에 입력된 문자열(str)이 부분문자열(substring)로 포함되어 있는
+// 도서를 검색하여 해당 색인을 selected_list에 저장하고
+// 검색된 도서 수를 반환한다.
+int search_book(MODE selected, BOOK* books, int n_book, char* str, int selected_list[])
+//selected에서 받아온숫자 구분에서 books에있는 n_book만큼 선택된 str를 검색하여 selected_list에 저장한다
+{
+    str[strlen(str) - 1] = '\0';
+    int j = 0;
+    switch (selected) {
+    case M_EXIT: exit(0);
+
+    case M_CLASS:
+        for (int i = 0; i < n_book; i++)
+        {
+            if (strstr(books[i].class, str) != NULL)
+            {
+                selected_list[j] = i;
+                j++;
+            }
+        }
+        return j;
+        break;
+    case M_TITLE:
+        for (int i = 0; i < n_book; i++)
+        {
+            if (strstr(books[i].title, str) != NULL)
+            {
+                selected_list[j] = i;
+                j++;
+            }
+        }
+        return j;
+        break;
+    case M_AUTHOR:
+        for (int i = 0; i < n_book; i++)
+        {
+            if (strstr(books[i].author, str) != NULL)
+            {
+                selected_list[j] = i;
+                j++;
+            }
+        }
+        return j;
+        break;
+    case M_ABSTRACT:
+        for (int i = 0; i < n_book; i++)
+        {
+            if (strstr(books[i].abstract, str) != NULL)
+            {
+                selected_list[j] = i;
+                j++;
+            }
+        }
+        return j;
+        break;
+    }
+}
+
+void print_books(BOOK* books, int n_book, int selected_list[], int n_searched)
+{
+    for (int i = 0; i < n_searched; i++)
+    {
+        printf("%-4d ::%-30s::%-20s::%-20s::% -5d\n", i + 1, books[selected_list[i]].title, books[selected_list[i]].author, books[selected_list[i]].publisher, books[selected_list[i]].year);
+    }
+}
+
+MODE print_manu(void)
+{
+    int selected;
+    do
+    {
+        printf("검색할 내용을 선택하세요.");
+        printf("[%d.%s ", 0, menu[0]);
+        for (int i = 1; i < NUM_MODE - 1; i++)
+            printf("%d.%s ", i, menu[i]);
+        printf("%d.%s] 선택 ? ", NUM_MODE - 1, menu[NUM_MODE - 1]);
+        scanf("%d", &selected);
+    } while (selected < 0 || selected > 4);
+    switch (selected)
+    {
+    case 0: return M_EXIT;
+    case 1: return M_CLASS;
+    case 2: return M_TITLE;
+    case 3: return M_AUTHOR;
+    case 4: return M_ABSTRACT;
+    }
+    return M_EXIT;
+}
